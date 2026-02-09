@@ -1,8 +1,13 @@
+# ============================================================
+# ФАЙЛ: okx.yml
+# Опис:
+# GitHub Actions workflow для запуску OKX_VOLUME_bot
+# ============================================================
+
 name: OKX_VOLUME_BOT
 
 on:
   schedule:
-    # КОЖНІ 15 ХВИЛИН
     - cron: "*/15 * * * *"
   workflow_dispatch:
 
@@ -27,9 +32,9 @@ jobs:
       - name: Run OKX volume bot
         env:
           OKX_API_KEY: ${{ secrets.OKX_API_KEY }}
-          OKX_SECRET_KEY: ${{ secrets.OKX_API_SECRET }}
-          OKX_PASSPHRASE: ${{ secrets.OKX_API_PASSPHRASE }}
-          TG_BOT_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          TG_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          OKX_API_SECRET: ${{ secrets.OKX_API_SECRET }}
+          OKX_API_PASSPHRASE: ${{ secrets.OKX_API_PASSPHRASE }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           python main.py
