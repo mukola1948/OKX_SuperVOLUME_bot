@@ -1,8 +1,8 @@
 # ============================================================
 # ФАЙЛ: orders.py
 # Опис:
-# Отримання власних ордерів з OKX
-# Реалізовано повний HMAC-підпис (обовʼязково для private API)
+# Отримання ВЛАСНИХ ордерів (long / short) з OKX
+# Використовується private API з HMAC-підписом
 # ============================================================
 
 import os
@@ -21,21 +21,19 @@ API_PASSPHRASE = os.getenv("OKX_API_PASSPHRASE")
 
 def _sign(ts: str, method: str, path: str) -> str:
     """
-    Формує HMAC SHA256 підпис для OKX
+    Формування HMAC SHA256 підпису для private OKX API
     """
     msg = f"{ts}{method}{path}"
-    mac = hmac.new(
-        API_SECRET.encode(),
-        msg.encode(),
-        hashlib.sha256
-    )
+    mac = hmac.new(API_SECRET.encode(), msg.encode(), hashlib.sha256)
     return base64.b64encode(mac.digest()).decode()
 
 
 def get_my_nearest_orders(symbol: str, current_price: float):
     """
-    Повертає 2 найближчі SELL (вище ціни)
-    та 2 найближчі BUY (нижче ціни)
+    Повертає:
+    - 2 найближчі SELL (short) вище ціни
+    - 2 найближчі BUY (long) нижче ціни
+    Якщо ордерів немає — повертаються порожні списки
     """
 
     path = f"/api/v5/trade/orders-pending?instId={symbol}&limit=50"
@@ -48,10 +46,10 @@ def get_my_nearest_orders(symbol: str, current_price: float):
         "OK-ACCESS-PASSPHRASE": API_PASSPHRASE,
     }
 
-    response = requests.get(BASE_URL + path, headers=headers, timeout=10)
-    response.raise_for_status()
+    r = requests.get(BASE_URL + path, headers=headers, timeout=10)
+    r.raise_for_status()
+    data = r.json()
 
-    data = response.json()
     if data.get("code") != "0":
         return [], []
 
@@ -60,17 +58,17 @@ def get_my_nearest_orders(symbol: str, current_price: float):
     for o in data.get("data", []):
         price = float(o["px"])
         qty = float(o["sz"])
-        trigger = o.get("triggerPx")
-        trigger_price = float(trigger) if trigger else None
+        trigger = float(o["triggerPx"]) if o.get("triggerPx") else None
 
-        record = (price, qty, trigger_price)
+        record = (price, qty, trigger)
 
         if o["side"] == "sell" and price > current_price:
             sells.append(record)
+
         if o["side"] == "buy" and price < current_price:
             buys.append(record)
 
-    sells.sort(key=lambda x: x[0])
-    buys.sort(key=lambda x: x[0], reverse=True)
+    sells.sort(key=lambda x: x[0])          # ближчі SELL
+    buys.sort(key=lambda x: x[0], reverse=True)  # ближчі BUY
 
     return sells[:2], buys[:2]

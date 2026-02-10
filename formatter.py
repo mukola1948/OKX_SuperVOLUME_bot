@@ -1,28 +1,23 @@
 # ============================================================
 # ФАЙЛ: formatter.py
 # Опис:
-# Формування тексту повідомлення для Telegram
+# Формування повідомлення для Telegram
+# Формат ЗАФІКСОВАНИЙ, без змін
 # ============================================================
 
 from datetime import datetime, timezone, timedelta
-from typing import Optional
+
+EMPTY = "-------------------"
 
 
-EMPTY_LINE = "---------------------------"
-
-
-def _format_side(label: str, volume: Optional[float], price: Optional[float], trigger: Optional[float]):
+def _fmt(label, order):
     """
-    Формат Buy / Sell:
-    - якщо немає ордера → дефіси
-    - trigger показується ТІЛЬКИ якщо існує
+    Формат одного ордера або дефісів
     """
-    if volume is None or price is None:
-        return EMPTY_LINE
-
-    if trigger is not None:
-        return f"{label} {volume}/{price:.4f}/{trigger:.4f}"
-    return f"{label} {volume}/{price:.4f}"
+    if not order:
+        return EMPTY
+    price, qty, _ = order
+    return f"{label}: {int(qty)}/{price:.4f}"
 
 
 def build_message(
@@ -36,34 +31,28 @@ def build_message(
     vmax_candle_count: int,
     cep_candle_count: int,
     spike_price: float,
-    sell_order: tuple | None = None,
-    buy_order: tuple | None = None,
+    sells: list,
+    buys: list,
 ) -> str:
 
-    utc_plus_2 = timezone(timedelta(hours=2))
-    time_str = datetime.now(utc_plus_2).strftime("%H:%M / %d-%m")
+    tz = timezone(timedelta(hours=2))
+    time_str = datetime.now(tz).strftime("%H:%M / %d-%m")
 
-    if ratio <= 50:
-        emoji_count = 1
-    elif ratio < 100:
-        emoji_count = 2
-    else:
-        emoji_count = 3
+    emoji = "🟢" if is_green_candle else "🔴"
+    emojis = emoji * (1 if ratio <= 50 else 2 if ratio < 100 else 3)
+    hilo = "ХАЙ" if is_green_candle else "ЛОЙ"
 
-    candle_emoji = "🟢" if is_green_candle else "🔴"
-    emojis = candle_emoji * emoji_count
-    hi_lo_label = "ХАЙ" if is_green_candle else "ЛОЙ"
+    s1 = _fmt("🔴Sell", sells[0] if len(sells) > 0 else None)
+    b1 = _fmt("🟢Buy",  buys[0] if len(buys) > 0 else None)
 
-    sell_price, sell_qty, sell_trigger = sell_order if sell_order else (None, None, None)
-    buy_price, buy_qty, buy_trigger = buy_order if buy_order else (None, None, None)
-
-    sell_str = _format_side("🔴Sell", sell_qty, sell_price, sell_trigger)
-    buy_str = _format_side("🟢Buy", buy_qty, buy_price, buy_trigger)
+    s2 = _fmt("🔴Sell", sells[1] if len(sells) > 1 else None)
+    b2 = _fmt("🟢Buy",  buys[1] if len(buys) > 1 else None)
 
     return (
         f"{emojis}{symbol} {interval_label}{emojis} = {price_now}\n"
-        f"{ratio:.1f} X     {hi_lo_label} = {spike_price:.3f}\n"
-        f"(Vmax{vmax_candle_count}св) {vmax:.1f} > {cep_value:.1f} (Vсер.{cep_candle_count}св)\n"
-        f"({time_str}) сплеск об'єму\n"
-        f"{sell_str} | | {buy_str}"
+        f"{ratio:.1f} X     {hilo} = {spike_price:.3f}\n"
+        f"(Vmax{vmax_candle_count}св) {vmax:.0f} > {cep_value:.0f} (Vсер.{cep_candle_count}св)\n"
+        f"({time_str}) сплеск об'єм\n"
+        f"{s1}||{b1}\n"
+        f"{s2}||{b2}"
     )

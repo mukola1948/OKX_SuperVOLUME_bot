@@ -1,8 +1,8 @@
 # ============================================================
 # ФАЙЛ: exchange.py
 # Опис:
-# Отримання свічок (klines) з OKX
-# Публічний endpoint — БЕЗ API ключів
+# Отримання фʼючерсних свічок OKX
+# Публічний market endpoint — без API ключів
 # ============================================================
 
 import requests
@@ -14,8 +14,8 @@ def get_futures_klines(symbol: str, interval: str, limit: int):
     """
     Отримує свічки OKX Futures
 
-    symbol  : "BTC-USDT-SWAP"
-    interval: "1", "5"
+    symbol  : BTC-USDT-SWAP
+    interval: 1, 5
     limit   : кількість свічок
     """
 
@@ -25,9 +25,9 @@ def get_futures_klines(symbol: str, interval: str, limit: int):
         "limit": limit,
     }
 
-    response = requests.get(OKX_KLINES_URL, params=params, timeout=10)
-    response.raise_for_status()
-    data = response.json()
+    r = requests.get(OKX_KLINES_URL, params=params, timeout=10)
+    r.raise_for_status()
+    data = r.json()
 
     if data.get("code") != "0":
         raise RuntimeError(f"OKX API error: {data}")

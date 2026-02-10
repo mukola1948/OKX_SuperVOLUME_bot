@@ -40,9 +40,6 @@ def run():
                     print(f"[WARN] Orders error {pair}: {e}")
                     sells, buys = [], []
 
-                nearest_sell = min(sells, key=lambda x: x[0]) if sells else None
-                nearest_buy = max(buys, key=lambda x: x[0]) if buys else None
-
                 message = build_message(
                     symbol=pair,
                     interval_label=interval_label,
@@ -54,8 +51,8 @@ def run():
                     vmax_candle_count=analysis["vmax_count"],
                     cep_candle_count=analysis["cep_count"],
                     spike_price=analysis["spike_price"],
-                    sell_order=nearest_sell,
-                    buy_order=nearest_buy,
+                    sells=sells,
+                    buys=buys,
                 )
 
                 send(message)
