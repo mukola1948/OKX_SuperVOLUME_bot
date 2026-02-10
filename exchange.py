@@ -1,27 +1,23 @@
 # ============================================================
 # ФАЙЛ: exchange.py
 # Опис:
-# Отримання свічок (klines) з OKX через API
+# Отримання свічок (klines) з OKX
+# Публічний endpoint — БЕЗ API ключів
 # ============================================================
 
-import os
 import requests
 
 OKX_KLINES_URL = "https://www.okx.com/api/v5/market/history-candles"
+
 
 def get_futures_klines(symbol: str, interval: str, limit: int):
     """
     Отримує свічки OKX Futures
 
-    symbol  : "BTCUSDT"
+    symbol  : "BTC-USDT-SWAP"
     interval: "1", "5"
     limit   : кількість свічок
     """
-    api_key = os.getenv("OKX_API_KEY")
-    api_secret = os.getenv("OKX_API_SECRET")
-
-    if not api_key or not api_secret:
-        raise RuntimeError("OKX API credentials not set in ENV")
 
     params = {
         "instId": symbol,

@@ -1,27 +1,28 @@
 # ============================================================
 # ФАЙЛ: formatter.py
 # Опис:
-# Формування тексту для Telegram
+# Формування тексту повідомлення для Telegram
 # ============================================================
 
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 
+EMPTY_LINE = "---------------------------"
+
+
 def _format_side(label: str, volume: Optional[float], price: Optional[float], trigger: Optional[float]):
     """
     Формат Buy / Sell:
-    - якщо немає ордера → -------------------
-    - після Buy / Sell НЕ ставити :
-    - trigger показувати ТІЛЬКИ якщо існує
+    - якщо немає ордера → дефіси
+    - trigger показується ТІЛЬКИ якщо існує
     """
     if volume is None or price is None:
-        return "-------------------"
+        return EMPTY_LINE
 
     if trigger is not None:
-        return f"{label} {volume}/{price}/{trigger}"
-    else:
-        return f"{label} {volume}/{price}"
+        return f"{label} {volume}/{price:.4f}/{trigger:.4f}"
+    return f"{label} {volume}/{price:.4f}"
 
 
 def build_message(
@@ -35,13 +36,12 @@ def build_message(
     vmax_candle_count: int,
     cep_candle_count: int,
     spike_price: float,
-    sell_order: tuple | None = None,  # (price, qty, trigger)
-    buy_order: tuple | None = None,   # (price, qty, trigger)
+    sell_order: tuple | None = None,
+    buy_order: tuple | None = None,
 ) -> str:
 
     utc_plus_2 = timezone(timedelta(hours=2))
-    now_utc2 = datetime.now(utc_plus_2)
-    time_str = now_utc2.strftime("%H:%M / %d-%m")
+    time_str = datetime.now(utc_plus_2).strftime("%H:%M / %d-%m")
 
     if ratio <= 50:
         emoji_count = 1
@@ -60,14 +60,10 @@ def build_message(
     sell_str = _format_side("🔴Sell", sell_qty, sell_price, sell_trigger)
     buy_str = _format_side("🟢Buy", buy_qty, buy_price, buy_trigger)
 
-    orders_block = f"{sell_str} | | {buy_str}"
-
-    message = (
+    return (
         f"{emojis}{symbol} {interval_label}{emojis} = {price_now}\n"
         f"{ratio:.1f} X     {hi_lo_label} = {spike_price:.3f}\n"
         f"(Vmax{vmax_candle_count}св) {vmax:.1f} > {cep_value:.1f} (Vсер.{cep_candle_count}св)\n"
         f"({time_str}) сплеск об'єму\n"
-        f"{orders_block}"
+        f"{sell_str} | | {buy_str}"
     )
-
-    return message

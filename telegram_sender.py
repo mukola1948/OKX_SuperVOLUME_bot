@@ -1,20 +1,24 @@
 # ============================================================
 # ФАЙЛ: telegram_sender.py
 # Опис:
-# Відправка готового повідомлення в Telegram
+# Відправка повідомлень у Telegram
 # ============================================================
 
 import os
 import requests
 
-def send_telegram_message(text: str):
-    token = os.getenv("TELEGRAM_TOKEN")
-    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-    if not token or not chat_id:
-        raise RuntimeError("Telegram ENV variables not set")
 
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = {"chat_id": chat_id, "text": text}
-    response = requests.post(url, json=payload, timeout=10)
-    response.raise_for_status()
+def send(message: str):
+    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    payload = {
+        "chat_id": CHAT_ID,
+        "text": message,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+    }
+
+    r = requests.post(url, json=payload, timeout=10)
+    r.raise_for_status()

@@ -8,7 +8,7 @@ from config import PAIRS, INTERVALS, K_SPIKE, INIT_CANDLES
 from exchange import get_futures_klines
 from analyzer import analyze
 from formatter import build_message
-from telegram_sender import send_telegram_message
+from telegram_sender import send
 from state import load_state, save_state, get_cep, set_cep
 from orders import get_my_nearest_orders
 
@@ -30,28 +30,18 @@ def run():
             analysis = analyze(candles, cep_old)
             set_cep(state, interval_label, analysis["cep_new"])
 
-            # ---- Умова сплеску ----
             if cep_old and analysis["vmax"] >= cep_old * K_SPIKE:
 
-                price_now = float(candles[0][4])
+                price_now = float(candles[-1][4])
 
-                # ---- Отримання МОЇХ ордерів через API ----
                 try:
-                    sells, buys = get_my_nearest_orders(pair)
+                    sells, buys = get_my_nearest_orders(pair, price_now)
                 except Exception as e:
                     print(f"[WARN] Orders error {pair}: {e}")
                     sells, buys = [], []
 
-                # ---- Найближчі ордери ----
-                # Sell → мінімальна ціна вище ринку
-                nearest_sell = (
-                    min(sells, key=lambda x: x[0]) if sells else None
-                )
-
-                # Buy → максимальна ціна нижче ринку
-                nearest_buy = (
-                    max(buys, key=lambda x: x[0]) if buys else None
-                )
+                nearest_sell = min(sells, key=lambda x: x[0]) if sells else None
+                nearest_buy = max(buys, key=lambda x: x[0]) if buys else None
 
                 message = build_message(
                     symbol=pair,
@@ -68,7 +58,7 @@ def run():
                     buy_order=nearest_buy,
                 )
 
-                send_telegram_message(message)
+                send(message)
 
     save_state(state)
 
