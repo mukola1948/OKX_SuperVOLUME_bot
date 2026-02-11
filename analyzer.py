@@ -1,14 +1,14 @@
 # ============================================================
 # ФАЙЛ: analyzer.py
 # Опис:
-# Уся МАТЕМАТИКА: Vmax, CEP, ratio, spike_price
+# Розрахунок vmax, CEP та ratio БЕЗ fallback значень
 # ============================================================
 
-def analyze(candles, cep_old):
+def analyze(candles):
     volumes = []
-    colors = []
     lows = []
     highs = []
+    colors = []
 
     for c in candles:
         open_p = float(c[1])
@@ -22,21 +22,28 @@ def analyze(candles, cep_old):
         highs.append(high_p)
         colors.append(close_p >= open_p)
 
+    if not volumes:
+        return None
+
     vmax = max(volumes)
     vmax_index = volumes.index(vmax)
 
-    filtered = [v for v in volumes if v < vmax / 2]
-    cep_new = sum(filtered) / len(filtered) if filtered else cep_old
+    # CEP = середнє всіх обʼємів менших за vmax
+    filtered = [v for v in volumes if v < vmax]
 
-    ratio = vmax / cep_old if cep_old else 0
+    if not filtered:
+        return None  # якщо нема бази для порівняння — сигнал не формуємо
+
+    cep = sum(filtered) / len(filtered)
+    ratio = vmax / cep
+
     spike_price = highs[vmax_index] if colors[vmax_index] else lows[vmax_index]
 
     return {
         "vmax": vmax,
-        "cep_new": cep_new,
+        "cep": cep,
         "ratio": ratio,
         "is_green": colors[vmax_index],
-        "vmax_count": 1,
-        "cep_count": len(filtered),
+        "vmax_index": vmax_index,
         "spike_price": spike_price,
     }
