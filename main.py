@@ -19,6 +19,7 @@ def run():
 
         last_ts = get_last_ts(state, pair)
 
+        # Перший запуск
         if not last_ts:
             candles = get_futures_klines(pair, INTERVAL, limit=INIT_CANDLES)
         else:
@@ -29,44 +30,51 @@ def run():
 
         candles = list(reversed(candles))
 
-        for candle in candles:
+        # Аналіз усіх нових свічок
+        analysis = analyze(candles, 1)
+        cep = analysis["cep_new"]
 
-            ts = candle[0]
+        if cep and analysis["vmax"] >= cep * K_SPIKE:
 
+            vmax = analysis["vmax"]
+            volumes = [float(c[5]) for c in candles]
+            vmax_index = volumes.index(vmax)
+
+            spike_candle = candles[vmax_index]
+            ts = spike_candle[0]
+            price_now = float(spike_candle[4])
+
+            # АНТИ-ДУБЛЮВАННЯ
             if last_ts and ts <= last_ts:
                 continue
 
-            analysis = analyze([candle], 1)
+            try:
+                sells, buys = get_my_nearest_orders(pair, price_now)
+            except (requests.RequestException, RuntimeError):
+                sells, buys = [], []
 
-            cep = analysis["cep_new"]
+            message = build_message(
+                symbol=pair,
+                interval_label="1m",
+                price_now=price_now,
+                vmax=vmax,
+                cep_value=cep,
+                ratio=analysis["ratio"],
+                is_green_candle=analysis["is_green"],
+                vmax_candle_count=analysis["vmax_count"],
+                cep_candle_count=analysis["cep_count"],
+                spike_price=analysis["spike_price"],
+                sells=sells,
+                buys=buys,
+            )
 
-            if cep and analysis["vmax"] >= cep * K_SPIKE:
-
-                price_now = float(candle[4])
-
-                try:
-                    sells, buys = get_my_nearest_orders(pair, price_now)
-                except (requests.RequestException, RuntimeError):
-                    sells, buys = [], []
-
-                message = build_message(
-                    symbol=pair,
-                    interval_label="1m",
-                    price_now=price_now,
-                    vmax=analysis["vmax"],
-                    cep_value=cep,
-                    ratio=analysis["ratio"],
-                    is_green_candle=analysis["is_green"],
-                    vmax_candle_count=analysis["vmax_count"],
-                    cep_candle_count=analysis["cep_count"],
-                    spike_price=analysis["spike_price"],
-                    sells=sells,
-                    buys=buys,
-                )
-
-                send(message)
+            send(message)
 
             set_last_ts(state, pair, ts)
+
+        else:
+            # Якщо сплеску нема — оновлюємо час останньої свічки
+            set_last_ts(state, pair, candles[-1][0])
 
     save_state(state)
 
