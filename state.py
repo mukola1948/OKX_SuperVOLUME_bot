@@ -1,11 +1,11 @@
 # ============================================================
 # ФАЙЛ: state.py
 # Опис:
-# Робота зі state.json (CEP між запусками)
+# Робота зі state.json (зберігаємо тільки last_ts)
 # ============================================================
 
 import json
-from typing import Dict, Optional
+from typing import Dict
 from json import JSONDecodeError
 
 STATE_FILE = "state.json"
@@ -15,10 +15,8 @@ def load_state() -> Dict:
     try:
         with open(STATE_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    except FileNotFoundError:
-        return {"last_run_id": None, "intervals": {}}
-    except JSONDecodeError:
-        return {"last_run_id": None, "intervals": {}}
+    except (FileNotFoundError, JSONDecodeError):
+        return {"intervals": {}}
 
 
 def save_state(state: Dict) -> None:
@@ -26,10 +24,10 @@ def save_state(state: Dict) -> None:
         json.dump(state, f, ensure_ascii=False, indent=2)
 
 
-def get_cep(state: Dict, interval_label: str) -> Optional[float]:
-    return state.get("intervals", {}).get(interval_label, {}).get("cep")
+def get_last_ts(state: Dict, pair: str):
+    return state.get("intervals", {}).get(pair, {}).get("last_ts")
 
 
-def set_cep(state: Dict, interval_label: str, value: float) -> None:
-    state.setdefault("intervals", {}).setdefault(interval_label, {})
-    state["intervals"][interval_label]["cep"] = value
+def set_last_ts(state: Dict, pair: str, ts: str):
+    state.setdefault("intervals", {}).setdefault(pair, {})
+    state["intervals"][pair]["last_ts"] = ts

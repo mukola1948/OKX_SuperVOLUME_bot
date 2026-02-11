@@ -1,8 +1,5 @@
 # ============================================================
 # ФАЙЛ: exchange.py
-# Опис:
-# Отримання фʼючерсних свічок OKX
-# Публічний market endpoint — без API ключів
 # ============================================================
 
 import requests
@@ -10,20 +7,17 @@ import requests
 OKX_KLINES_URL = "https://www.okx.com/api/v5/market/history-candles"
 
 
-def get_futures_klines(symbol: str, interval: str, limit: int):
-    """
-    Отримує свічки OKX Futures
-
-    symbol  : BTC-USDT-SWAP
-    interval: 1, 5
-    limit   : кількість свічок
-    """
-
+def get_futures_klines(symbol: str, interval: str, limit: int = None, after: str = None):
     params = {
         "instId": symbol,
-        "bar": interval + "m",
-        "limit": limit,
+        "bar": str(interval) + "m",
     }
+
+    if limit is not None:
+        params["limit"] = str(limit)
+
+    if after is not None:
+        params["after"] = str(after)
 
     r = requests.get(OKX_KLINES_URL, params=params, timeout=10)
     r.raise_for_status()

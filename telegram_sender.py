@@ -1,13 +1,11 @@
 # ============================================================
 # ФАЙЛ: telegram_sender.py
-# Опис:
-# Відправка повідомлень у Telegram
 # ============================================================
 
 import os
 import requests
 
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 
