@@ -1,58 +1,76 @@
 # ============================================================
-# ФАЙЛ: formatter.py
+# ФАЙЛ: main.py
 # ============================================================
 
-from datetime import datetime, timezone, timedelta
-
-EMPTY = "-------------------"
-
-
-def _fmt(label, order):
-    if not order:
-        return EMPTY
-    price, qty, _ = order
-    return f"{label}: {int(qty)}/{price:.4f}"
+from config import PAIRS, INTERVALS, INIT_CANDLES
+from exchange import get_futures_klines
+from analyzer import analyze
+from formatter import build_message
+from telegram_sender import send
+from state import load_state, save_state, get_last_ts, set_last_ts
+from orders import get_my_nearest_orders
 
 
-def _short_symbol(symbol: str) -> str:
-    return symbol.split("-")[0]
+def run():
+    state = load_state()
+
+    for pair in PAIRS:
+        for interval_label, interval_api in INTERVALS.items():
+
+            last_ts = get_last_ts(state, pair)
+
+            try:
+                candles = get_futures_klines(pair, interval_api, INIT_CANDLES)
+            except Exception as e:
+                print(f"[WARN] Skip {pair}: {e}")
+                continue
+
+            # OKX повертає новіші першими → розвертаємо
+            candles = list(reversed(candles))
+
+            # Фільтрація тільки нових свічок
+            if last_ts:
+                candles = [c for c in candles if int(c[0]) > int(last_ts)]
+
+            if not candles:
+                continue
+
+            spikes = analyze(candles)
+
+            for spike in spikes:
+
+                candle = spike["candle"]
+                price_now = float(candle[4])
+                spike_price = float(candle[2])
+
+                try:
+                    sells, buys = get_my_nearest_orders(pair, price_now)
+                except Exception as e:
+                    print(f"[WARN] Orders error {pair}: {e}")
+                    sells, buys = [], []
+
+                message = build_message(
+                    symbol=pair.split("-")[0],
+                    interval_label=interval_label,
+                    price_now=price_now,
+                    vmax=spike["volume"],
+                    cep_value=spike["cep"],
+                    ratio=spike["ratio"],
+                    is_green_candle=float(candle[4]) >= float(candle[1]),
+                    vmax_candle_count=1,
+                    cep_candle_count=len(candles),
+                    spike_price=spike_price,
+                    sells=sells,
+                    buys=buys,
+                )
+
+                send(message)
+
+            # Зберігаємо timestamp останньої свічки
+            set_last_ts(state, pair, candles[-1][0])
+
+    save_state(state)
 
 
-def build_message(
-    symbol: str,
-    interval_label: str,
-    price_now: float,
-    vmax: float,
-    cep_value: float,
-    ratio: float,
-    is_green_candle: bool,
-    vmax_candle_count: int,
-    cep_candle_count: int,
-    spike_price: float,
-    sells: list,
-    buys: list,
-) -> str:
-
-    tz = timezone(timedelta(hours=2))
-    time_str = datetime.now(tz).strftime("%H:%M / %d-%m")
-
-    short_symbol = _short_symbol(symbol)
-
-    emoji = "🟢" if is_green_candle else "🔴"
-    emojis = emoji * (1 if ratio <= 50 else 2 if ratio < 100 else 3)
-    hilo = "ХАЙ" if is_green_candle else "ЛОЙ"
-
-    s1 = _fmt("🔴Sell", sells[0] if len(sells) > 0 else None)
-    b1 = _fmt("🟢Buy", buys[0] if len(buys) > 0 else None)
-
-    s2 = _fmt("🔴Sell", sells[1] if len(sells) > 1 else None)
-    b2 = _fmt("🟢Buy", buys[1] if len(buys) > 1 else None)
-
-    return (
-        f"{emojis}{short_symbol} {interval_label}{emojis} = {price_now}\n"
-        f"{ratio:.1f} X     {hilo} = {spike_price:.3f}\n"
-        f"(Vmax{vmax_candle_count}св) {vmax:.0f} > {cep_value:.0f} (Vсер.{cep_candle_count}св)\n"
-        f"({time_str}) сплеск об'єм\n"
-        f"{s1}||{b1}\n"
-        f"{s2}||{b2}"
-    )
+if __name__ == "__main__":
+    run()

@@ -1,14 +1,10 @@
 """
 analyzer.py
 
-Відповідає за:
-- розрахунок середнього об'єму (CEP)
-- пошук максимального об'єму (Vmax)
-- обчислення коефіцієнта ratio = Vmax / CEP
-- перевірку умови сплеску
-
-НЕ використовує cep = 1
-НЕ генерує сигнал якщо свічок < 55
+Логіка:
+- розрахунок CEP
+- перевірка кожної свічки
+- повернення списку сплесків
 """
 
 from config import K_SPIKE, MIN_CANDLES
@@ -16,26 +12,24 @@ from config import K_SPIKE, MIN_CANDLES
 
 def analyze(candles):
     if len(candles) < MIN_CANDLES:
-        return None
+        return []
 
     volumes = [float(c[5]) for c in candles]
-
     cep = sum(volumes) / len(volumes)
 
-    vmax = max(volumes)
+    spikes = []
 
-    ratio = vmax / cep
+    for i, candle in enumerate(candles):
+        volume = float(candle[5])
+        ratio = volume / cep
 
-    if ratio < K_SPIKE:
-        return None
+        if ratio >= K_SPIKE:
+            spikes.append({
+                "candle": candle,
+                "ratio": ratio,
+                "volume": volume,
+                "cep": cep,
+                "index": i
+            })
 
-    vmax_index = volumes.index(vmax)
-    spike_candle = candles[vmax_index]
-
-    return {
-        "cep": cep,
-        "vmax": vmax,
-        "ratio": ratio,
-        "spike_candle": spike_candle,
-        "count": len(candles)
-    }
+    return spikes
