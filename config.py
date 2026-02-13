@@ -8,16 +8,18 @@ config.py
 - множник сплеску
 - мінімальну кількість свічок
 """
+# ============================================================
 
 PAIRS = [
     "LDO-USDT-SWAP",
-    "BTC-USDT-SWAP",
     "OP-USDT-SWAP",
-    "ETH-USDT-SWAP"
+    "BTC-USDT-SWAP",
+    "ETH-USDT-SWAP",
 ]
 
-INTERVAL = "1m"
+INTERVALS = {
+    "1m": "1",
+}
 
+INIT_CANDLES = 100
 K_SPIKE = 5
-
-MIN_CANDLES = 55

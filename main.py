@@ -1,69 +1,58 @@
-"""
-main.py
+# ============================================================
+# ФАЙЛ: formatter.py
+# ============================================================
 
-Головний файл бота.
-"""
+from datetime import datetime, timezone, timedelta
 
-from config import PAIRS, INTERVAL, MIN_CANDLES
-from exchange import get_futures_klines
-from analyzer import analyze
-from formatter import format_message
-from notifier import notify
-from state import load_state, save_state, get_last_ts, set_last_ts
-from orders import get_my_nearest_orders
+EMPTY = "-------------------"
 
 
-def run():
-
-    state = load_state()
-
-    for pair in PAIRS:
-
-        last_ts = get_last_ts(state, pair)
-
-        if not last_ts:
-            candles = get_futures_klines(pair, INTERVAL, limit=MIN_CANDLES)
-        else:
-            candles = get_futures_klines(pair, INTERVAL, after=last_ts)
-
-        if not candles:
-            continue
-
-        candles = list(reversed(candles))
-
-        analysis = analyze(candles)
-
-        if not analysis:
-            if candles:
-                set_last_ts(state, pair, candles[-1][0])
-            continue
-
-        spike_ts = analysis["spike_candle"][0]
-
-        if last_ts and spike_ts <= last_ts:
-            continue
-
-        price = float(candles[-1][4])
-        low_price = float(analysis["spike_candle"][3])
-
-        sells, buys = get_my_nearest_orders(pair, price)
-
-        message = format_message(
-            pair,
-            INTERVAL,
-            price,
-            analysis,
-            low_price,
-            sells,
-            buys
-        )
-
-        notify(message)
-
-        set_last_ts(state, pair, candles[-1][0])
-
-    save_state(state)
+def _fmt(label, order):
+    if not order:
+        return EMPTY
+    price, qty, _ = order
+    return f"{label}: {int(qty)}/{price:.4f}"
 
 
-if __name__ == "__main__":
-    run()
+def _short_symbol(symbol: str) -> str:
+    return symbol.split("-")[0]
+
+
+def build_message(
+    symbol: str,
+    interval_label: str,
+    price_now: float,
+    vmax: float,
+    cep_value: float,
+    ratio: float,
+    is_green_candle: bool,
+    vmax_candle_count: int,
+    cep_candle_count: int,
+    spike_price: float,
+    sells: list,
+    buys: list,
+) -> str:
+
+    tz = timezone(timedelta(hours=2))
+    time_str = datetime.now(tz).strftime("%H:%M / %d-%m")
+
+    short_symbol = _short_symbol(symbol)
+
+    emoji = "🟢" if is_green_candle else "🔴"
+    emojis = emoji * (1 if ratio <= 50 else 2 if ratio < 100 else 3)
+    hilo = "ХАЙ" if is_green_candle else "ЛОЙ"
+
+    s1 = _fmt("🔴Sell", sells[0] if len(sells) > 0 else None)
+    b1 = _fmt("🟢Buy", buys[0] if len(buys) > 0 else None)
+
+    s2 = _fmt("🔴Sell", sells[1] if len(sells) > 1 else None)
+    b2 = _fmt("🟢Buy", buys[1] if len(buys) > 1 else None)
+
+    return (
+        f"{emojis}{short_symbol} {interval_label}{emojis} = {price_now}\n"
+        f"{ratio:.1f} X     {hilo} = {spike_price:.3f}\n"
+        f"(Vmax{vmax_candle_count}св) {vmax:.0f} > {cep_value:.0f} (Vсер.{cep_candle_count}св)\n"
+        f"({time_str}) сплеск об'єм\n"
+        f"{s1}||{b1}\n"
+        f"{s2}||{b2}"
+    )
