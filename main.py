@@ -12,6 +12,7 @@ from orders import get_my_nearest_orders
 
 
 def run():
+
     state = load_state()
 
     for pair in PAIRS:
@@ -28,18 +29,19 @@ def run():
             # OKX повертає новіші першими → розвертаємо
             candles = list(reversed(candles))
 
-            # Фільтрація тільки нових свічок
+            # беремо тільки нові свічки
             if last_ts:
                 candles = [c for c in candles if int(c[0]) > int(last_ts)]
 
             if not candles:
                 continue
 
-            spikes = analyze(candles)
+            analysis = analyze(candles)
 
-            for spike in spikes:
+            if analysis:
 
-                candle = spike["candle"]
+                candle = analysis["candle"]
+
                 price_now = float(candle[4])
                 spike_price = float(candle[2])
 
@@ -53,11 +55,11 @@ def run():
                     symbol=pair.split("-")[0],
                     interval_label=interval_label,
                     price_now=price_now,
-                    vmax=spike["volume"],
-                    cep_value=spike["cep"],
-                    ratio=spike["ratio"],
+                    vmax=analysis["vmax"],
+                    cep_value=analysis["cep"],
+                    ratio=analysis["ratio"],
                     is_green_candle=float(candle[4]) >= float(candle[1]),
-                    vmax_candle_count=1,
+                    vmax_candle_count=analysis["spike_count"],  # <-- тут 4св
                     cep_candle_count=len(candles),
                     spike_price=spike_price,
                     sells=sells,
@@ -66,7 +68,7 @@ def run():
 
                 send(message)
 
-            # Зберігаємо timestamp останньої свічки
+            # зберігаємо ts останньої свічки масиву
             set_last_ts(state, pair, candles[-1][0])
 
     save_state(state)

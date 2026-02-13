@@ -1,9 +1,7 @@
 """
 state.py
 
-Відповідає за:
-- завантаження state.json
-- збереження timestamp останньої обробленої свічки
+Зберігає last_ts окремо для кожного symbol
 """
 
 import json
@@ -24,9 +22,9 @@ def save_state(state):
         json.dump(state, f)
 
 
-def get_last_ts(state, pair):
-    return state.get(pair)
+def get_last_ts(state, symbol):
+    return state.get(symbol)
 
 
-def set_last_ts(state, pair, ts):
-    state[pair] = ts
+def set_last_ts(state, symbol, ts):
+    state[symbol] = ts

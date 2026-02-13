@@ -1,7 +1,5 @@
 # ============================================================
 # ФАЙЛ: okx.yml
-# Опис:
-# GitHub Actions workflow для запуску OKX_VOLUME_bot
 # ============================================================
 
 name: OKX_VOLUME_BOT
@@ -18,6 +16,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true   # важливо для push
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -38,3 +38,12 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           python main.py
+
+      # 👇 ДОДАНО
+      - name: Commit updated state
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add state.json
+          git diff --cached --quiet || git commit -m "Update state.json [auto]"
+          git push
