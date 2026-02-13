@@ -1,33 +1,32 @@
-# ============================================================
-# ФАЙЛ: state.py
-# Опис:
-# Робота зі state.json (зберігаємо тільки last_ts)
-# ============================================================
+"""
+state.py
+
+Відповідає за:
+- завантаження state.json
+- збереження timestamp останньої обробленої свічки
+"""
 
 import json
-from typing import Dict
-from json import JSONDecodeError
+import os
 
 STATE_FILE = "state.json"
 
 
-def load_state() -> Dict:
-    try:
-        with open(STATE_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (FileNotFoundError, JSONDecodeError):
-        return {"intervals": {}}
+def load_state():
+    if not os.path.exists(STATE_FILE):
+        return {}
+    with open(STATE_FILE, "r") as f:
+        return json.load(f)
 
 
-def save_state(state: Dict) -> None:
-    with open(STATE_FILE, "w", encoding="utf-8") as f:
-        json.dump(state, f, ensure_ascii=False, indent=2)
+def save_state(state):
+    with open(STATE_FILE, "w") as f:
+        json.dump(state, f)
 
 
-def get_last_ts(state: Dict, pair: str):
-    return state.get("intervals", {}).get(pair, {}).get("last_ts")
+def get_last_ts(state, pair):
+    return state.get(pair)
 
 
-def set_last_ts(state: Dict, pair: str, ts: str):
-    state.setdefault("intervals", {}).setdefault(pair, {})
-    state["intervals"][pair]["last_ts"] = ts
+def set_last_ts(state, pair, ts):
+    state[pair] = ts

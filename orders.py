@@ -1,74 +1,108 @@
 # ============================================================
 # ФАЙЛ: orders.py
 # Опис:
-# Отримання ВЛАСНИХ ордерів (long / short) з OKX
-# Використовується private API з HMAC-підписом
+# Отримання відкритих ордерів з OKX.
+# Якщо API не авторизований — бот НЕ падає.
+#
+# Виправлення:
+# - Секрети беруться з environment variables (GitHub Secrets)
+# - BASE_URL визначено локально
+# - звужено блок except
 # ============================================================
 
 import os
-import time
+import requests
 import hmac
 import base64
 import hashlib
-import requests
+import time
 
+
+# ------------------------------------------------------------
+# Базовий URL OKX
+# ------------------------------------------------------------
 BASE_URL = "https://www.okx.com"
 
+
+# ------------------------------------------------------------
+# Отримання секретів з environment
+# (GitHub Actions → Settings → Secrets)
+# ------------------------------------------------------------
 API_KEY = os.getenv("OKX_API_KEY")
 API_SECRET = os.getenv("OKX_API_SECRET")
 API_PASSPHRASE = os.getenv("OKX_API_PASSPHRASE")
 
 
-def _sign(ts: str, method: str, path: str) -> str:
-    """
-    Формування HMAC SHA256 підпису для private OKX API
-    """
-    msg = f"{ts}{method}{path}"
-    mac = hmac.new(API_SECRET.encode(), msg.encode(), hashlib.sha256)
-    return base64.b64encode(mac.digest()).decode()
+# ------------------------------------------------------------
+# Формування заголовків OKX API
+# ------------------------------------------------------------
+def _headers(method, request_path, body=""):
 
+    if not API_KEY or not API_SECRET or not API_PASSPHRASE:
+        return {}
 
-def get_my_nearest_orders(symbol: str, current_price: float):
-    """
-    Повертає:
-    - 2 найближчі SELL (short) вище ціни
-    - 2 найближчі BUY (long) нижче ціни
-    Якщо ордерів немає — повертаються порожні списки
-    """
+    timestamp = str(time.time())
 
-    path = f"/api/v5/trade/orders-pending?instId={symbol}&limit=50"
-    ts = str(time.time())
+    message = timestamp + method + request_path + body
 
-    headers = {
+    mac = hmac.new(
+        API_SECRET.encode(),
+        message.encode(),
+        hashlib.sha256,
+    )
+
+    sign = base64.b64encode(mac.digest()).decode()
+
+    return {
         "OK-ACCESS-KEY": API_KEY,
-        "OK-ACCESS-SIGN": _sign(ts, "GET", path),
-        "OK-ACCESS-TIMESTAMP": ts,
+        "OK-ACCESS-SIGN": sign,
+        "OK-ACCESS-TIMESTAMP": timestamp,
         "OK-ACCESS-PASSPHRASE": API_PASSPHRASE,
+        "Content-Type": "application/json",
     }
 
-    r = requests.get(BASE_URL + path, headers=headers, timeout=10)
-    r.raise_for_status()
-    data = r.json()
 
-    if data.get("code") != "0":
+# ------------------------------------------------------------
+# Отримання найближчих ордерів
+# ------------------------------------------------------------
+def get_my_nearest_orders(symbol, price_now):
+
+    path = f"/api/v5/trade/orders-pending?instId={symbol}&limit=50"
+    url = BASE_URL + path
+
+    try:
+        r = requests.get(url, headers=_headers("GET", path), timeout=10)
+
+        if r.status_code == 401:
+            return [], []
+
+        r.raise_for_status()
+
+        data = r.json()
+
+        if data.get("code") != "0":
+            return [], []
+
+        orders = data.get("data", [])
+
+    except requests.RequestException:
+        return [], []
+    except ValueError:
         return [], []
 
-    sells, buys = [], []
+    sells = []
+    buys = []
 
-    for o in data.get("data", []):
-        price = float(o["px"])
-        qty = float(o["sz"])
-        trigger = float(o["triggerPx"]) if o.get("triggerPx") else None
+    for o in orders:
+        px = float(o["px"])
+        sz = float(o["sz"])
 
-        record = (price, qty, trigger)
+        if px > price_now:
+            sells.append((px, sz, abs(px - price_now)))
+        else:
+            buys.append((px, sz, abs(px - price_now)))
 
-        if o["side"] == "sell" and price > current_price:
-            sells.append(record)
+    sells = sorted(sells, key=lambda x: x[2])[:2]
+    buys = sorted(buys, key=lambda x: x[2])[:2]
 
-        if o["side"] == "buy" and price < current_price:
-            buys.append(record)
-
-    sells.sort(key=lambda x: x[0])          # ближчі SELL
-    buys.sort(key=lambda x: x[0], reverse=True)  # ближчі BUY
-
-    return sells[:2], buys[:2]
+    return sells, buys

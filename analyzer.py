@@ -1,49 +1,41 @@
-# ============================================================
-# ФАЙЛ: analyzer.py
-# Опис:
-# Розрахунок vmax, CEP та ratio БЕЗ fallback значень
-# ============================================================
+"""
+analyzer.py
+
+Відповідає за:
+- розрахунок середнього об'єму (CEP)
+- пошук максимального об'єму (Vmax)
+- обчислення коефіцієнта ratio = Vmax / CEP
+- перевірку умови сплеску
+
+НЕ використовує cep = 1
+НЕ генерує сигнал якщо свічок < 55
+"""
+
+from config import K_SPIKE, MIN_CANDLES
+
 
 def analyze(candles):
-    volumes = []
-    lows = []
-    highs = []
-    colors = []
-
-    for c in candles:
-        open_p = float(c[1])
-        high_p = float(c[2])
-        low_p = float(c[3])
-        close_p = float(c[4])
-        volume = float(c[5])
-
-        volumes.append(volume)
-        lows.append(low_p)
-        highs.append(high_p)
-        colors.append(close_p >= open_p)
-
-    if not volumes:
+    if len(candles) < MIN_CANDLES:
         return None
 
+    volumes = [float(c[5]) for c in candles]
+
+    cep = sum(volumes) / len(volumes)
+
     vmax = max(volumes)
-    vmax_index = volumes.index(vmax)
 
-    # CEP = середнє всіх обʼємів менших за vmax
-    filtered = [v for v in volumes if v < vmax]
-
-    if not filtered:
-        return None  # якщо нема бази для порівняння — сигнал не формуємо
-
-    cep = sum(filtered) / len(filtered)
     ratio = vmax / cep
 
-    spike_price = highs[vmax_index] if colors[vmax_index] else lows[vmax_index]
+    if ratio < K_SPIKE:
+        return None
+
+    vmax_index = volumes.index(vmax)
+    spike_candle = candles[vmax_index]
 
     return {
-        "vmax": vmax,
         "cep": cep,
+        "vmax": vmax,
         "ratio": ratio,
-        "is_green": colors[vmax_index],
-        "vmax_index": vmax_index,
-        "spike_price": spike_price,
+        "spike_candle": spike_candle,
+        "count": len(candles)
     }
