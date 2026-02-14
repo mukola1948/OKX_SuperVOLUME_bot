@@ -1,6 +1,3 @@
-# ============================================================
-# ФАЙЛ: formatter.py
-# ============================================================
 
 from datetime import datetime, timezone, timedelta
 
@@ -16,6 +13,15 @@ def _fmt(label, order):
 
 def _short_symbol(symbol: str) -> str:
     return symbol.split("-")[0]
+
+
+def _emoji_count(ratio: float) -> int:
+    if ratio <= 50:
+        return 1
+    elif 50 < ratio < 100:
+        return 2
+    else:
+        return 3
 
 
 def build_message(
@@ -39,7 +45,8 @@ def build_message(
     short_symbol = _short_symbol(symbol)
 
     emoji = "🟢" if is_green_candle else "🔴"
-    emojis = emoji * (1 if ratio <= 50 else 2 if ratio < 100 else 3)
+    emojis = emoji * _emoji_count(ratio)
+
     hilo = "ХАЙ" if is_green_candle else "ЛОЙ"
 
     s1 = _fmt("🔴Sell", sells[0] if len(sells) > 0 else None)
@@ -48,9 +55,12 @@ def build_message(
     s2 = _fmt("🔴Sell", sells[1] if len(sells) > 1 else None)
     b2 = _fmt("🟢Buy", buys[1] if len(buys) > 1 else None)
 
+    # Формат ratio з комою
+    ratio_str = f"{ratio:.1f}".replace(".", ",")
+
     return (
-        f"{emojis}{short_symbol} {interval_label}{emojis} = {price_now}\n"
-        f"{ratio:.1f} X     {hilo} = {spike_price:.3f}\n"
+        f"{emojis}{short_symbol} {interval_label}= {price_now}{emojis}\n"
+        f"{ratio_str} X     {hilo} = {spike_price:.3f}\n"
         f"(Vmax{vmax_candle_count}св) {vmax:.0f} > {cep_value:.0f} (Vсер.{cep_candle_count}св)\n"
         f"({time_str}) сплеск об'єм\n"
         f"{s1}||{b1}\n"

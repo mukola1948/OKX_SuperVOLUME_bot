@@ -26,10 +26,8 @@ def run():
                 print(f"[WARN] Skip {pair}: {e}")
                 continue
 
-            # OKX повертає новіші першими → розвертаємо
             candles = list(reversed(candles))
 
-            # беремо тільки нові свічки
             if last_ts:
                 candles = [c for c in candles if int(c[0]) > int(last_ts)]
 
@@ -52,14 +50,14 @@ def run():
                     sells, buys = [], []
 
                 message = build_message(
-                    symbol=pair.split("-")[0],
+                    symbol=pair,  # ← ВИПРАВЛЕНО (було pair.split)
                     interval_label=interval_label,
                     price_now=price_now,
                     vmax=analysis["vmax"],
                     cep_value=analysis["cep"],
                     ratio=analysis["ratio"],
                     is_green_candle=float(candle[4]) >= float(candle[1]),
-                    vmax_candle_count=analysis["spike_count"],  # <-- тут 4св
+                    vmax_candle_count=analysis["spike_count"],
                     cep_candle_count=len(candles),
                     spike_price=spike_price,
                     sells=sells,
@@ -68,7 +66,6 @@ def run():
 
                 send(message)
 
-            # зберігаємо ts останньої свічки масиву
             set_last_ts(state, pair, candles[-1][0])
 
     save_state(state)
