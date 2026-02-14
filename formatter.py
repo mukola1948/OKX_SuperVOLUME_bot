@@ -1,3 +1,13 @@
+"""
+formatter.py
+
+Формує повідомлення для Telegram.
+
+Зміни:
+- відображається реальна кількість свічок
+- відображається час останньої свічки (UTC+2)
+- відображається час сплеску Vmax (UTC+2)
+"""
 
 from datetime import datetime, timezone, timedelta
 
@@ -24,6 +34,12 @@ def _emoji_count(ratio: float) -> int:
         return 3
 
 
+def _format_time_from_ts(ts: int):
+    tz = timezone(timedelta(hours=2))
+    dt = datetime.fromtimestamp(int(ts) / 1000, tz)
+    return dt.strftime("%H:%M"), dt.strftime("%d-%m")
+
+
 def build_message(
     symbol: str,
     interval_label: str,
@@ -35,12 +51,11 @@ def build_message(
     vmax_candle_count: int,
     cep_candle_count: int,
     spike_price: float,
+    spike_ts: int,
+    last_candle_ts: int,
     sells: list,
     buys: list,
 ) -> str:
-
-    tz = timezone(timedelta(hours=2))
-    time_str = datetime.now(tz).strftime("%H:%M / %d-%m")
 
     short_symbol = _short_symbol(symbol)
 
@@ -49,20 +64,22 @@ def build_message(
 
     hilo = "ХАЙ" if is_green_candle else "ЛОЙ"
 
+    ratio_str = f"{ratio:.1f}".replace(".", ",")
+
+    last_time, date_str = _format_time_from_ts(last_candle_ts)
+    spike_time, _ = _format_time_from_ts(spike_ts)
+
     s1 = _fmt("🔴Sell", sells[0] if len(sells) > 0 else None)
     b1 = _fmt("🟢Buy", buys[0] if len(buys) > 0 else None)
 
     s2 = _fmt("🔴Sell", sells[1] if len(sells) > 1 else None)
     b2 = _fmt("🟢Buy", buys[1] if len(buys) > 1 else None)
 
-    # Формат ratio з комою
-    ratio_str = f"{ratio:.1f}".replace(".", ",")
-
     return (
         f"{emojis}{short_symbol} {interval_label}= {price_now}{emojis}\n"
         f"{ratio_str} X     {hilo} = {spike_price:.3f}\n"
         f"(Vmax{vmax_candle_count}св) {vmax:.0f} > {cep_value:.0f} (Vсер.{cep_candle_count}св)\n"
-        f"({time_str}) сплеск об'єм\n"
+        f"({last_time} / {date_str}) СПЛЕСК {spike_time}\n"
         f"{s1}||{b1}\n"
         f"{s2}||{b2}"
     )

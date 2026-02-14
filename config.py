@@ -25,4 +25,4 @@ INTERVALS = {
 
 INIT_CANDLES = 100
 MIN_CANDLES = 55   # мінімум для розрахунку CEP
-K_SPIKE = 5
+K_SPIKE = 7.3

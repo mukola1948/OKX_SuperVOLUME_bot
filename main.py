@@ -1,5 +1,8 @@
 # ============================================================
 # ФАЙЛ: main.py
+# Опис:
+# Головний файл запуску бота.
+# Передає реальну кількість свічок та timestamp у formatter.
 # ============================================================
 
 from config import PAIRS, INTERVALS, INIT_CANDLES
@@ -42,6 +45,8 @@ def run():
 
                 price_now = float(candle[4])
                 spike_price = float(candle[2])
+                spike_ts = int(candle[0])
+                last_candle_ts = int(candles[-1][0])
 
                 try:
                     sells, buys = get_my_nearest_orders(pair, price_now)
@@ -50,7 +55,7 @@ def run():
                     sells, buys = [], []
 
                 message = build_message(
-                    symbol=pair,  # ← ВИПРАВЛЕНО (було pair.split)
+                    symbol=pair,
                     interval_label=interval_label,
                     price_now=price_now,
                     vmax=analysis["vmax"],
@@ -58,8 +63,10 @@ def run():
                     ratio=analysis["ratio"],
                     is_green_candle=float(candle[4]) >= float(candle[1]),
                     vmax_candle_count=analysis["spike_count"],
-                    cep_candle_count=len(candles),
+                    cep_candle_count=analysis["analyzed_candles"],
                     spike_price=spike_price,
+                    spike_ts=spike_ts,
+                    last_candle_ts=last_candle_ts,
                     sells=sells,
                     buys=buys,
                 )
