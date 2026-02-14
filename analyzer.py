@@ -2,31 +2,42 @@
 analyzer.py
 
 Логіка:
-- рахуємо CEP по фактично переданих свічках
-- знаходимо всі свічки зі сплеском
-- вибираємо одну з максимальним VOLUME
-- повертаємо реальну кількість свічок для відображення
+- аналізуються лише нові свічки (відфільтровані в main.py)
+- спочатку визначається Vmax серед нових свічок
+- CEP рахується лише по тих нових свічках,
+  обʼєм яких <= Vmax / 2
+- потім визначаються свічки-сплески (>= K_SPIKE * CEP)
+- використовується тільки одна — з найбільшим volume
 """
 
-from config import K_SPIKE, MIN_CANDLES
+from config import K_SPIKE
 
 
 def analyze(candles):
 
-    # Перевірка мінімальної кількості свічок
-    if len(candles) < MIN_CANDLES:
+    # Якщо нових свічок немає — вихід
+    if not candles:
         return None
 
-    # Розрахунок CEP
+    # 1️⃣ Визначаємо Vmax серед нових свічок
     volumes = [float(c[5]) for c in candles]
-    cep = sum(volumes) / len(volumes)
+    vmax_global = max(volumes)
+
+    # 2️⃣ Формуємо масив для CEP:
+    #    тільки ті свічки, що <= Vmax / 2
+    cep_volumes = [v for v in volumes if v <= (vmax_global / 2)]
+
+    if not cep_volumes:
+        return None
+
+    cep = sum(cep_volumes) / len(cep_volumes)
 
     spike_candidates = []
 
-    # Пошук свічок зі сплеском
+    # 3️⃣ Пошук свічок зі сплеском
     for candle in candles:
         volume = float(candle[5])
-        ratio = volume / cep
+        ratio = volume / cep if cep > 0 else 0
 
         if ratio >= K_SPIKE:
             spike_candidates.append((candle, volume, ratio))
@@ -34,7 +45,7 @@ def analyze(candles):
     if not spike_candidates:
         return None
 
-    # Вибираємо одну — з найбільшим volume
+    # 4️⃣ Вибираємо одну — з найбільшим volume
     spike_candidates.sort(key=lambda x: x[1], reverse=True)
     best_candle, best_volume, best_ratio = spike_candidates[0]
 
@@ -44,5 +55,5 @@ def analyze(candles):
         "ratio": best_ratio,
         "cep": cep,
         "spike_count": len(spike_candidates),
-        "analyzed_candles": len(candles),  # ← РЕАЛЬНА кількість
+        "analyzed_candles": len(candles),
     }
