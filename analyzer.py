@@ -2,22 +2,22 @@
 analyzer.py
 
 Логіка:
-- рахуємо CEP по фактично переданих свічках
+- аналізуються лише нові свічки (відфільтровані в main.py)
+- CEP рахується тільки по цих свічках
 - знаходимо всі свічки зі сплеском
 - вибираємо одну з максимальним VOLUME
-- повертаємо реальну кількість свічок для відображення
 """
 
-from config import K_SPIKE, MIN_CANDLES
+from config import K_SPIKE
 
 
 def analyze(candles):
 
-    # Перевірка мінімальної кількості свічок
-    if len(candles) < MIN_CANDLES:
+    # Якщо нових свічок немає — вихід
+    if not candles:
         return None
 
-    # Розрахунок CEP
+    # Розрахунок CEP тільки по нових свічках
     volumes = [float(c[5]) for c in candles]
     cep = sum(volumes) / len(volumes)
 
@@ -26,7 +26,7 @@ def analyze(candles):
     # Пошук свічок зі сплеском
     for candle in candles:
         volume = float(candle[5])
-        ratio = volume / cep
+        ratio = volume / cep if cep > 0 else 0
 
         if ratio >= K_SPIKE:
             spike_candidates.append((candle, volume, ratio))
@@ -44,5 +44,5 @@ def analyze(candles):
         "ratio": best_ratio,
         "cep": cep,
         "spike_count": len(spike_candidates),
-        "analyzed_candles": len(candles),  # ← РЕАЛЬНА кількість
+        "analyzed_candles": len(candles),
     }
