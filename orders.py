@@ -5,7 +5,6 @@
 # ============================================================
 
 import os
-import time
 import hmac
 import base64
 import hashlib
@@ -20,7 +19,7 @@ API_PASSPHRASE = os.getenv("OKX_API_PASSPHRASE")
 
 
 # ------------------------------------------------------------
-# Генерація ISO-8601 timestamp (обов’язкова вимога OKX v5)
+# Генерація ISO-8601 timestamp (вимога OKX v5)
 # ------------------------------------------------------------
 def _timestamp():
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
