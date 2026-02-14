@@ -24,7 +24,7 @@ def analyze(candles):
     vmax_global = max(volumes)
 
     # 2️⃣ Формуємо масив для CEP:
-    #    тільки ті свічки, що <= Vmax / 2
+    #    тільки ті свічки, що <= Vmax / 1.8
     cep_volumes = [v for v in volumes if v <= (vmax_global / 2)]
 
     if not cep_volumes:
