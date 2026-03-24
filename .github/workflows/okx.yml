@@ -1,8 +1,14 @@
 # ============================================================
 # ФАЙЛ: okx.yml
+# Опис:
+# GitHub Actions для OKX_SuperVOLUME_bot
+# - запуск кожні 15 хв
+# - ручний запуск
+# - запуск бота
+# - збереження state.json в цей же репозиторій
 # ============================================================
 
-name: OKX_VOLUME_BOT
+name: OKX_SuperVOLUME_BOT
 
 on:
   schedule:
@@ -14,22 +20,35 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
+      # --------------------------------------------------------
+      # 1. Клонування репозиторію
+      # --------------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           persist-credentials: true
 
+      # --------------------------------------------------------
+      # 2. Встановлення Python
+      # --------------------------------------------------------
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+      # --------------------------------------------------------
+      # 3. Встановлення залежностей
+      # --------------------------------------------------------
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run OKX volume bot
+      # --------------------------------------------------------
+      # 4. Запуск бота
+      # --------------------------------------------------------
+      - name: Run OKX SuperVolume bot
         env:
           OKX_API_KEY: ${{ secrets.OKX_API_KEY }}
           OKX_API_SECRET: ${{ secrets.OKX_API_SECRET }}
@@ -39,10 +58,19 @@ jobs:
         run: |
           python main.py
 
+      # --------------------------------------------------------
+      # 5. Збереження state.json
+      # --------------------------------------------------------
       - name: Commit updated state
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
+
+          # додаємо файл навіть якщо в .gitignore
           git add -f state.json
+
+          # коміт тільки якщо є зміни
           git diff --cached --quiet || git commit -m "Update state.json [auto]"
-          git push
+
+          # пуш саме в поточний репозиторій
+          git push origin HEAD:main
